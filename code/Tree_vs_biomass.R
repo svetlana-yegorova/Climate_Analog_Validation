@@ -129,8 +129,102 @@ trees_fia_s3$resid<-tr_tr3$residuals
 #2. Create a hexbin plot of residuals by climate and physical distance. 
 head(trees_fia_s3)
 
-ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=abs(resid)))+
+residual_hexbin<-ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=abs(resid)))+
 stat_summary_hex(fun="mean", bins=50)+
 viridis::scale_fill_viridis(limits  = c(0, 50),na.value='yellow',name='mean \nabs(residual)\n') +
-ggtitle("Residuals from Analog ~ focal tree cover mapped by climatic and physical distance")+
-theme_bw()
+ggtitle("Residuals from analog ~ focal tree cover mapped by climatic \nand physical distance. (Sigma<=3)\n")+
+theme_bw()+
+theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+
+png("./outputs/residuals_byMD&km.png")
+residual_hexbin
+dev.off()
+
+# for a given distance, residuals are the lowest at the lowest climate distance, but do not vary in the expected way 
+# for a given climate distance. 
+
+#3. Map the difference between focal and analog pixel divided by focal tree cover instead of pure residual: 
+colnames(trees_fia_s3)[25]<-"tree_resid"
+trees_fia_s3$tree_ratio<-abs(trees_fia_s3$focal_trees-trees_fia_s3$analog_trees)/(trees_fia_s3$focal_trees+0.01) # add a small value to avoid dividing by zero
+
+#3a. Look at whether residuals vary with focal tree cover: 
+ggplot(data=trees_fia_s3, aes(x=km, y=tree_ratio))+
+stat_binhex(aes(fill=log10(..count..)), bins=100)+
+  viridis::scale_fill_viridis(limits  = c(0, 4),na.value='yellow',name='log10 \nabs(cover difference ratio)\n') +
+  ylim(0, 5)
+# ratio values weakly deteriorate with distance
+
+
+# 3b. hexbin plot by climate and physical distance with tree cover ratio instead of residuals. Get a similar result. 
+# for a given physical distance, lowest ratio is found at lowest climate distance. 
+# for all climate distances, lowest ratio is found at the lowest physical distance (<100 km away)
+
+ratio_hexbin<-ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=tree_ratio))+
+  stat_summary_hex(fun="mean", bins=100)+
+  viridis::scale_fill_viridis(limits  = c(0, 5),na.value='yellow',name='mean \nratio\n') +
+  ggtitle("tree cover difference ratio mapped by climatic \nand physical distance. (Sigma<=3)\n")+
+  theme_bw()+
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+
+
+ratio_hexbin
+
+# 3c. also look at the density of observations. Looks like the residual and the 
+# ratio pattern follows the observation density - better residuals/lower error when fewer observations are available
+
+
+data_density<-ggplot(data=trees_fia_s3, aes(x=km, y=MD))+
+  stat_binhex(aes(fill=log10(..count..)),bins=30) +
+  viridis::scale_fill_viridis(limits  = c(0, 3.5),na.value='red',name='log10 \n(# observations)\n') +
+  ggtitle("Density of observations. (Sigma<=3)")+
+  theme_bw()+
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),-
+        axis.title.y = element_text(size = 15))
+data_density
+png("./output/observation_density.png")
+data_density
+dev.off()
+
+
+#3c. Look at the variability of each hexbin (vs mean estimate that we looked at above)
+
+variability<-ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=tree_ratio))+
+  stat_summary_hex(fun=function(z) sd(z), bins=100)+
+  viridis::scale_fill_viridis(limits  = c(0, 5),na.value='yellow',name='sd(ratio)') +
+  ggtitle("ratio variability by climatic and physical distance. (Sigma<=3)")+
+  theme_bw()+
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+png("./outputs/ratio_variability.png")
+variability
+dev.off()
+
+#3d. Look at the variability of residuals in each hexbin (vs ratio looked at above)
+
+resid_variability<-ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=tree_resid))+
+  stat_summary_hex(fun=function(z) sd(z), bins=50)+
+  viridis::scale_fill_viridis(limits  = c(0, 30),na.value='red',name='sd(ratio)') +
+  ggtitle("residual variability by climatic and physical distance. (Sigma<=3)")+
+  theme_bw()+
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+png("./outputs/ratio_variability.png")
+resid_variability
+dev.off()
