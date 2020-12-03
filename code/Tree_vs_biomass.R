@@ -2,12 +2,13 @@
 
 ### Data #####################
 data_out<-readRDS("./data/fia_tree_cover4km.rds")
+ncol(data_out)
+colnames(data_out)[24]<-("analog_trees")
 trees_fia<-subset(data_out, !(is.na(analog_trees)))
-
 
 ### Libraries ################
 library(tidyverse)
-
+library(ggplot2)
 
 
 ### check the normality assumption of the tree cover data 
@@ -26,7 +27,7 @@ summary(slope_25)
 str(slope_25)
 hist(slope_25$residuals)
 
-# set up an empty dataframe where to store slope and intercept from the analog ~ focal linear models: 
+# set up an empty dataframe to store slopes and intercepts from the analog ~ focal linear models: 
 
 sig_coef<-data.frame(sigma=as.numeric(), slope=as.numeric(), intcpt=as.numeric() )
 
@@ -70,9 +71,9 @@ slopes<-ggplot(data=sig_pivot, aes(x=sigma, y=slope_value, col=type))+
   theme_bw()+
   ggtitle("Linear Model Slopes by Sigma")
 
-png("tree&carbon_slopes.png", width =700, height=700)
+# png("tree&carbon_slopes.png", width =700, height=700)
 slopes
-dev.off()
+# dev.off()
 
 # 3c. zoom into the 0 to 4 region on the x-axis, add ticks in the 0 to 1 stretch 
 slopes_zoom<-ggplot(data=sig_pivot, aes(x=sigma, y=slope_value, col=type))+
@@ -90,11 +91,46 @@ slopes_zoom<-ggplot(data=sig_pivot, aes(x=sigma, y=slope_value, col=type))+
 
 slopes_zoom
 
-png("./outputs/slopes_zoomed.png", width=700, height=700)
+# png("./outputs/slopes_zoomed.png", width=700, height=700)
 
 slopes_zoom
-dev.off()
+# dev.off()
 
-?scale_x_continuous
 
-plot(slope~sigma, data=sig_coef)
+####### re-create MSE by sigma and distance plot to examine the effect of physical distance and climate #########
+#### Plan of work: 
+#### 1. regress analog tree cover on focal tree cover data, get the residuals (for a reasonable sigma, say within 2 sigmas)
+#### get the residuals from that regression. the residuals. Doing this should neutralize the effect of focal tree cover on 
+#### the error of the analog tree cover. 
+### 2. create an hexbin plot calculating MSE for each bin, with climate distance on horizontal axis, physical distance on the 
+### vertical axis and hexbins colored by the mean residual size. 
+
+#1. the regression
+head(trees_fia)
+
+# if i use all data, then the slope is flat
+tr_tr<-lm(analog_trees~focal_trees, data=trees_fia)
+summary(tr_tr)
+
+
+plot (analog_trees~focal_trees, data=trees_fia)
+abline(a=tr_tr$coefficients[1], b=tr_tr$coefficients[2], col='red')
+
+# try sigma<=3.# slope of 0.5 for Sigma<=3. 
+
+trees_fia_s3<-subset(trees_fia, Sigma<=3)
+tr_tr3<-lm(analog_trees~focal_trees, data=trees_fia_s3)
+summary(tr_tr3)
+
+# gather the residuals: 
+nrow(trees_fia_s3)
+trees_fia_s3$resid<-tr_tr3$residuals
+
+#2. Create a hexbin plot of residuals by climate and physical distance. 
+head(trees_fia_s3)
+
+ggplot(data=trees_fia_s3, aes(x=km, y=MD, z=abs(resid)))+
+stat_summary_hex(fun="mean", bins=50)+
+viridis::scale_fill_viridis(limits  = c(0, 50),na.value='yellow',name='mean \nabs(residual)\n') +
+ggtitle("Residuals from Analog ~ focal tree cover mapped by climatic and physical distance")+
+theme_bw()
