@@ -366,3 +366,100 @@ ggplot(data=trees_sub, aes(x=MD, y=tree_resid))+
 
 ggplot(data=trees_sub, aes(x=focal_trees, y=analog_trees))+
   geom_point()
+
+
+#### also try partial regression. 1. regress analog cover ratio on sigma. 
+# 2. regress sigma on distance.. 3. regress residuals from 1 on residuals from 2? 
+
+### do partial regression with analog~focal residuals, use data for Sigma<=3, because those are the data that
+### we are interested in. 
+
+#. Make explanatory variables range from 0 to 1. 
+km_min<- min(trees_fia_s3$km)
+km_range<-max(trees_fia_s3$km - km_min)
+trees_fia_s3$st_km<-(trees_fia_s3$km - km_min)/km_range
+
+md_range<-max(trees_fia_s3$MD)-min(trees_fia_s3$MD)
+trees_fia_s3$st_md<-(trees_fia_s3$MD-min(trees_fia_s3$MD))/md_range
+
+
+head(trees_fia_s3)
+# calculate tree cover difference ratio for all plots/all sigma levels: 
+trees_fia$tree_ratio<-abs(trees_fia$focal_trees-trees_fia$analog_trees)/(trees_fia$focal_trees+0.01)
+
+# plot tree cover difference ratio by sigma level: 
+ggplot(data=subset(trees_fia_s3, focal_trees>=1), aes(x=st_md,  y=tree_ratio))+
+  stat_binhex(aes(fill=log10(..count..)),bins=100)+
+  #geom_vline(xintercept = 4, col="yellow")+
+  xlim(0, 1)
+
+# 1. regress cover ratio on MD
+ratio_lm<-lm(tree_ratio~st_km, data=subset(trees_fia_s3, focal_trees>=1))  
+summary(ratio_lm)  
+
+#2. regress MD on distance: 
+md_lm<-lm(st_md~st_km, data=subset(trees_fia_s3, focal_trees>=1))
+summary(md_lm)
+
+ggplot(data=subset(trees_fia_s3, focal_trees>=1), aes(x=st_km, y=st_md))+
+  stat_binhex(aes(fill=log10(..count..)),bins=100)+
+  geom_abline(intercept=md_lm$coefficients[1], slope=md_lm$coefficients[2])
+
+?geom_abline  
+
+str(trees_fia_s3)
+
+# 3. regress residuals from 1 on residuals on 2. 
+res1<-ratio_lm$residuals # ratio by MD residuals
+res2<-md_lm$residuals # md by km residuals. 
+hist(res1, breaks=100)
+p_reg<-data.frame(cbind(res1, res2))
+str(p_reg)
+
+range(p_reg$res1)
+p_regr<-lm(abs(res1)~abs(res2), data=p_reg)
+summary(p_regr)
+
+ggplot(data=p_reg, aes(x=abs(res2), y=abs(res1)))+
+  stat_binhex(aes(fill=log10(..count..)),bins=100)+
+  ylab("tree cover ratio not explained by distance") + xlab("climate variability not explained by distance")+
+  ggtitle("Partial regression ")+
+  ylim(-2.5, 10)+
+  geom_abline(intercept=p_regr$coefficients[1], slope=p_regr$coefficients[2], col="yellow")
+
+
+############# analog - focal residual partial regression
+### subsample by distance bin and then run regression? 
+head(trees_fia_s3)
+hist((trees_fia_s3$tree_resid))
+
+#1a. residuals regressed on km: 
+r1<-lm(analog_trees~km+focal_trees, data=trees_fia_s3)
+summary(r1)
+hist(r1$residuals)
+
+r_test<-lm(analog_trees~focal_trees+MD+km, data=trees_fia_s3)
+summary(r_test)
+vif(r_test)
+#1b. residuals regressed on km, subsampled dataset: 
+r1b<-lm(analog_trees~km+focal_trees, data=trees_sub)
+summary(r1b)
+hist(r1b$residuals)
+
+#2a. md regressed on km: 
+r2<-lm(MD~km+focal_trees, data=trees_fia_s3)
+summary(r2)
+
+#2b. as in 2a, but with a subsample dataset: 
+r2b<-lm(MD~km+focal_trees, data=trees_sub)
+summary(r2b)
+
+
+cover_res<-data.frame(cbind(r1$residuals, r2$residuals))
+sub_res<-data.frame(cbind(r1a$residuals, r2b$residuals))
+#3a. plot and model: 
+head(sub_res)
+ggplot(data=cover_res, aes(x=abs(X2), y=abs(X1)))+
+  stat_binhex(aes(fill=log10(..count..)),bins=100)
+  
+  
