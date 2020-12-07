@@ -446,6 +446,7 @@ r1b<-lm(analog_trees~km+focal_trees, data=trees_sub)
 summary(r1b)
 hist(r1b$residuals)
 
+
 #2a. md regressed on km: 
 r2<-lm(MD~km+focal_trees, data=trees_fia_s3)
 summary(r2)
