@@ -150,7 +150,7 @@ str(trees_fia)
 # trees_fia$Sig_c_f
 # custom labelling function: 
 tabLabeller <- function(variable, value) {
-  return(paste("Climate dist:", as.character(value)))
+  return(paste("Sigma:", as.character(value)))
 }
 
 
@@ -190,7 +190,7 @@ ggplot(data=subset(trees_fia, Sigma<=1), aes(x=focal_trees, y=analog_trees))+
         plot.caption = element_text()) + coord_fixed()
 
 # hexbins with facets: 
-tree_hexes<-ggplot(data=subset(trees_fia, Sigma<=4), aes(x=focal_trees, y=analog_trees))+
+tree_hexes<-ggplot(data=trees_fia, aes(x=focal_trees, y=analog_trees))+
   stat_binhex(aes(fill=log10(..count..)), bins=30)+
   geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
   geom_smooth(colour="yellow", method='lm')+
@@ -208,6 +208,8 @@ tree_hexes<-ggplot(data=subset(trees_fia, Sigma<=4), aes(x=focal_trees, y=analog
         axis.title.y = element_text(size = 15)) 
 
 
-png("./outputs/tree_cover_plots_with_hexbins.png", height=700, width=1600)
+png("./outputs/tree_cover_plots_with_hexbins_all_sigs.png", height=700, width=1600)
 tree_hexes
 dev.off()
+
+

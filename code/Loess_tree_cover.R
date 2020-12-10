@@ -88,7 +88,7 @@ gg_spline<-ggplot(data=subset(trees_fia, Sigma<=0.25), aes(x=focal_trees, y=anal
 gg_spline
 
 ############ hexbins with facets and smooth spline instead of line fit to the data: 
-tree_hexes<-ggplot(data=subset(trees_fia, Sigma<=4), aes(x=focal_trees, y=analog_trees))+
+tree_hexes<-ggplot(data=trees_fia, aes(x=focal_trees, y=analog_trees))+
   stat_binhex(aes(fill=log10(..count..)), bins=30)+
   geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
   geom_spline(colour="yellow", nknots=10, cex=2)+
@@ -106,13 +106,13 @@ dev.off()
 ######### biomass hexbins with smooth spline fit to the data: 
 head(trees_fia)
 
-AGC_hexes<-ggplot(data=subset(trees_fia, Sigma<=4), aes(x=lfc, y=lc))+
+AGC_hexes<-ggplot(data=trees_fia, aes(x=lfc, y=lc))+
   stat_binhex(aes(fill=log10(..count..)), bins=30)+
   geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
   geom_spline(colour="yellow", nknots=10, cex=2)+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))+
-  labs(x="Focal Pixel Tree Cover", y= "Analog Pixel Tree Cover", color="sigma")+
+  labs(x="Focal Carbon", y= "Analog Carbon", color="sigma")+
   ggtitle("Model Performance with Increasing Climate Dissimilarity")+
   theme(plot.title = element_text(hjust=0.5), # centers the main title 
         plot.caption = element_text()) + coord_fixed(ratio=1, ylim=c(-6, 6), xlim=c(-6, 6))+

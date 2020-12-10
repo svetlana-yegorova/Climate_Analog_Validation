@@ -463,4 +463,3 @@ head(sub_res)
 ggplot(data=cover_res, aes(x=abs(X2), y=abs(X1)))+
   stat_binhex(aes(fill=log10(..count..)),bins=100)
   
-  

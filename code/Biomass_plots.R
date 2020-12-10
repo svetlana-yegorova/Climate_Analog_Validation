@@ -28,7 +28,7 @@ ggplot(data=subset(trees_fia, Sigma<=0.25), aes(x=lfc, y=lc))+
         plot.caption = element_text()) + coord_fixed()
 
 # facet plots by sigma levels: 
-biomass_plots<-ggplot(data=subset(trees_fia, Sigma<=4.0), aes(x=lfc, y=lc))+
+biomass_plots<-ggplot(data=trees_fia, aes(x=lfc, y=lc))+
   geom_point(aes(colour=Sigma))+
   geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
   geom_smooth(colour='yellow', method='lm')+

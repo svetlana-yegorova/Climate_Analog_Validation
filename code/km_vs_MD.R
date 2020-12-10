@@ -6,6 +6,10 @@ data_out<-readRDS("./data/fia_tree_cover4km.rds")
 ncol(data_out)
 colnames(data_out)[24]<-("analog_trees")
 trees_fia<-subset(data_out, !(is.na(analog_trees)))
+trees_fia$cover_d<-trees_fia$focal_trees-trees_fia$analog_trees
+# calculate MD ceiling
+trees_fia$MD_c<-ceiling(trees_fia$MD)
+head(trees_fia)
 
 ############## Libraries #####################
 library(plyr)
@@ -181,7 +185,7 @@ png("./outputs/ratio_by_focal_cover.png")
 ratio
 dev.off()
 
-diff<-ggplot(data=sigma2_trees, aes(y=cover_d, x=focal_trees))+
+diff<-ggplot(data=trees_fia, aes(y=cover_d, x=focal_trees))+
   stat_binhex(aes(fill=log10(..count..)), bins=100)+
   geom_smooth(method='lm', colour='yellow')+
   geom_spline(colour="green", nknots=20, cex=2)+
@@ -192,18 +196,18 @@ diff<-ggplot(data=sigma2_trees, aes(y=cover_d, x=focal_trees))+
 png("./outputs/cover_differece_by_focal_cover.png")
 diff
 dev.off()
-
+max(trees_fia$focal_trees)
 
 # take residuals from difference~ focal cover regression: 
-cov_resid<-lm(cover_d~focal_trees*focal_trees, data=sigma2_trees)
+cov_resid<-lm(cover_d~focal_trees, trees_fia)
 summary(cov_resid)
 
 
-sigma2_trees$nf_resid<-cov_resid$residuals
+trees_fia$nf_resid<-cov_resid$residuals
 
 # influence of climate distance independent of physical distance: 
 
-diff1<-ggplot(data=sigma2_trees, aes(y=nf_resid, x=focal_trees))+
+diff1<-ggplot(data=trees_fia, aes(y=nf_resid, x=focal_trees))+
   stat_binhex(aes(fill=log10(..count..)), bins=100)+
   geom_smooth(method='lm', formula="y~x", colour='yellow')+
   geom_spline(colour="green", nknots=20, cex=2)+
@@ -228,26 +232,29 @@ diff2<-ggplot(data=sigma2_trees, aes(y=nf_resid, x=focal_trees))+
 
 ########## Repeat the MD by km plot, using nf_resid and nf_resid (nf for no focal influence) variability: 
 
+
 # residuals by md and km (no strong pattern)
-residual_hexbin<-ggplot(data=sigma2_trees, aes(x=km, y=MD, z=abs(nf_resid)))+
+residual_hexbin<-ggplot(data=trees_fia, aes(x=km, y=MD, z=abs(nf_resid)))+
   stat_summary_hex(fun="mean", bins=50)+
-  viridis::scale_fill_viridis(limits  = c(0, 30),na.value='red',name='mean \nabs(residual)\n') +
-  ggtitle("Residuals from analog difference ~ focal tree cover mapped by climatic \nand physical distance. (Sigma<=2)\n")+
+  viridis::scale_fill_viridis(limits  = c(0, 40),na.value='red',name='mean \nabs(residual)\n') +
+  ggtitle("Residuals from analog difference ~ focal tree cover \n mapped by climatic and physical distance. \n")+
+  ylim(0, 5)+
   theme_bw()+
   theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
         plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
         plot.caption = element_text(color = "gray65", face = "italic"),
         axis.title.x = element_text(size = 15),
         axis.title.y = element_text(size = 15))
-png("./outputs/mean_residuals_by_mdkm.png")
+png("./outputs/mean_no_focal_influence_residuals_by_mdkm_zoomed.png")
 residual_hexbin
 dev.off()
 
 # residual variability by md and km: 
-residual_variability<-ggplot(data=sigma2_trees, aes(x=km, y=MD, z=nf_resid))+
+residual_variability<-ggplot(data=trees_fia, aes(x=km, y=MD, z=nf_resid))+
   stat_summary_hex(fun=function(z) sd(z), bins=50)+
-  viridis::scale_fill_viridis(limits  = c(0, 30),na.value='red', name='SD \n(residuals)\n') +
-  ggtitle("Variability of residuals ", subtitle = "residuals from cover difference ~ focal cover regression. Sigma<=2")+
+  viridis::scale_fill_viridis(limits  = c(0, 40),na.value='red', name='SD \n(residuals)\n') +
+  ggtitle("Variability of residuals ", subtitle = "")+
+  ylim(0, 5)+
   theme_bw()+
   theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
         plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
@@ -255,7 +262,7 @@ residual_variability<-ggplot(data=sigma2_trees, aes(x=km, y=MD, z=nf_resid))+
         axis.title.x = element_text(size = 15),
         axis.title.y = element_text(size = 15))
 
-png("./outputs/residual_variability.png")
+png("./outputs/residual_variability_zoomed.png")
 residual_variability
 dev.off()
 
@@ -304,6 +311,89 @@ png("./outputs/partial_regression_km.png")
 p_reg_plot1
 dev.off()
 
-a<-subset(trees_fia, Sigma<=0.25)
-max(a$km)
-hist(a$km)
+############# look at individual influence of km and md on mean residuals and residual variability:
+head(trees_fia)
+error_by_MD<-ggplot(data=trees_fia, aes(x=MD, y=nf_resid))+
+  stat_binhex(aes(fill=log10(..count..)), bins=50)+
+  labs(x="MD ", y="residuals")+
+  ggtitle("Tree cover residuals by Mahalanobis distance")
+
+png("./outputs/prediction_error_by_MD.png")
+error_by_MD
+dev.off()
+
+error_by_km<-ggplot(data=trees_fia, aes(x=km, y=nf_resid))+
+  stat_binhex(aes(fill=log10(..count..)), bins=50)+
+  labs(x="km ", y="residuals")+
+  ggtitle("Tree cover residuals by physical distance")
+
+
+png("./outputs/prediction_error_by_km.png")
+error_by_km
+dev.off()
+error_by_km
+
+### variability of residuals by MD and by km: 
+head(trees_fia)
+
+# residuals do get larger, eventually(the boxplot shows the median, not the mean). 
+boxplot_by_MD<-ggplot(data=trees_fia, aes(x=as.factor(MD_c), y=nf_resid))+
+  geom_boxplot()+
+  labs(x="MD", y="residual boxplot")+
+  ggtitle("Tree cover residual variabiity by Mahalanobis distance")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90))
+png("./outputs/residuals_by_MD.png")
+boxplot_by_MD
+dev.off()
+
+# residuals by distance: 
+boxplot_by_km<-ggplot(data=trees_fia, aes(x=as.factor(km_bin), y=nf_resid))+
+  geom_boxplot()+
+  labs(x="km bin", y="residual boxplot")+
+  ggtitle("Tree cover residual variabiity by physical distance")+
+  theme(axis.text.x = element_text(angle = 90))
+
+png("./outputs/residual_by_km.png")
+boxplot_by_km
+dev.off()
+
+# variance by climate distance: 
+sd_by_sig<-ddply(trees_fia, .(Sig_c_f), summarize, resid_sd=sd(nf_resid), mean_residual=mean(nf_resid))
+# plot(resid_var~Sig_c_f, data=var_by_sig)
+# plot(mean_residual~Sig_c_f, data=var_by_sig)
+
+
+ggplot(data=sd_by_sig, aes(x=Sig_c_f, y=resid_sd))+
+  geom_point(aes(x=Sig_c_f, y=resid_sd))+
+  geom_point(aes(x=Sig_c_f, y=mean_residual), col='red')
+
+
+sd_by_md<-ddply(trees_fia, .(MD_c), summarize, resid_sd=sd(nf_resid), mean_residual=mean(nf_resid))
+# plot(resid_var~MD_c, data=var_by_md)
+
+res_by_md<-ggplot(data=sd_by_md, aes(x=MD_c, y=resid_sd))+
+  geom_point(aes(x=MD_c, y=resid_sd))+
+  geom_point(aes(x=MD_c, y=mean_residual), col='red')+
+  labs(title="mean (red) and sd (black) of cover residuals by Mahalanobis distance", x="MD", y="mean/sd of the residuals")
+
+png("./outputs/res_by_md.png")
+res_by_md
+dev.off()
+
+
+# variance by physical distance: 
+sd_by_km<-ddply(trees_fia, .(km_bin), summarize, resid_sd=sd(nf_resid), mean_residual=mean(nf_resid))
+
+res_by_km<-ggplot(data=sd_by_km, aes(x=km_bin, y=resid_sd))+
+  geom_point(aes(x=km_bin, y=resid_sd))+
+  geom_point(aes(x=km_bin, y=mean_residual), col='red')+
+  labs(title="mean (red) and sd (black) of cover residuals by km", x="km", y="mean/sd of the residuals")
+png("./outputs/res_by_km.png")
+res_by_km
+dev.off()
+
+# plot(resid_sd~km_bin, data=sd_by_km, main="Residual SD by Distance Bin", ylab="Residual SD", xlab="kilometers")
+# 
+# sd_by_md<-ddply(trees_fia, .(MD_c), summarize, resid_sd=sd(nf_resid))
+# plot(resid_sd~MD_c, data=sd_by_md)
