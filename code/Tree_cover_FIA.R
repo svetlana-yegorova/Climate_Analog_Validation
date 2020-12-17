@@ -11,6 +11,7 @@ data_out<-readRDS("./data/fia_tree_cover4km.rds")
 ################## libraries #################################
 
 library(ggplot2)
+library(plyr)
 
 
 head(data_out)
@@ -212,4 +213,110 @@ png("./outputs/tree_cover_plots_with_hexbins_all_sigs.png", height=700, width=16
 tree_hexes
 dev.off()
 
+##### --------Plot Mean Analog Tree Cover for each level of sigma---------------------- #####
+#  calculate mean analog for different levels of sigma
+head(trees_fia)
+str(trees_fia$Sig_c_f)
 
+# add one more level of Sigma: 
+trees_fia$Sig_c_f1<-ifelse(trees_fia$Sigma<=0.1, 0.1, as.numeric(as.character(trees_fia$Sig_c_f)))
+mean_analog<-ddply(trees_fia, .(from_plot, focal_trees, Sig_c_f1), summarize, mean_cover=mean(analog_trees), mean_km=mean(km))
+head(mean_analog)
+
+
+mean_an<-ggplot(data=subset(mean_analog, Sig_c_f1<25), aes(x=focal_trees, y=mean_cover))+
+  #stat_binhex(aes(fill=log10(..count..)), bins=30)+
+  geom_point(aes(colour=log(mean_km)), cex=2)+
+  geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
+  geom_smooth(colour="yellow", method='lm', se=FALSE)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(x="Focal Pixel Tree Cover", y= " Mean Analog Pixel Tree Cover", color="mean log(km)\n to analog\n")+
+  ggtitle("Model Performance with Increasing Climate Dissimilarity")+
+  theme(plot.title = element_text(hjust=0.5), # centers the main title 
+        plot.caption = element_text()) + coord_fixed()+
+  facet_wrap(vars(Sig_c_f1), nrow=1, labeller = tabLabeller) +
+  theme(plot.title = element_text(color = "black", size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 16, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 17),
+        axis.title.y = element_text(size = 17)) 
+
+png("./outputs/mean_analog.png", height=700, width=1600)
+mean_an
+dev.off()
+
+
+tree_hexes<-ggplot(data=subset(trees_fia, Sigma<25), aes(x=focal_trees, y=analog_trees))+
+  stat_binhex(aes(fill=log10(..count..)), bins=30)+
+  geom_abline( intercept=0, slope=1, col='lightblue', linetype="dashed", cex=1)+ # add linetype= "dashed". 
+  geom_smooth(colour="yellow", method='lm')+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(x="Focal Pixel Tree Cover", y= "Analog Pixel Tree Cover", color="sigma")+
+  ggtitle("Model Performance with Increasing Climate Dissimilarity")+
+  theme(plot.title = element_text(hjust=0.5), # centers the main title 
+        plot.caption = element_text()) + coord_fixed()+
+  facet_wrap(vars(Sig_c_f1), nrow=1, labeller = tabLabeller) +
+  theme(plot.title = element_text(color = "black", size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 16, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 17),
+        axis.title.y = element_text(size = 17)) 
+
+
+# slope coefficients for the mean analog model: 
+sigmas<-unique(trees_fia$Sig_c_f1)
+rm(sig_coef_c)
+sig_coef_c<-data.frame(sigma=as.numeric(), slope=as.numeric(), intcpt=as.numeric() )
+head(mean_analog)
+
+#rm(srt)
+for (i in sigmas){
+  model<-lm(mean_cover~focal_trees, data=subset(mean_analog, Sig_c_f1== i))
+  srt <-cbind(i, as.numeric(model$coefficients[1]), model$coefficients[2])
+  sig_coef_c<-rbind(sig_coef_c, srt)
+}
+
+names(sig_coef_c)<-c("sigma", "intercept", "slope")
+sig_coef_c
+
+
+# slopes for analog~focal relationship: 
+#rm(sig_coef)
+sig_coef<-data.frame(sigma=as.numeric(), slope=as.numeric(), intcpt=as.numeric() )
+
+# coefficients for the tree cover models: 
+for (i in sigmas) {
+  model<-lm(analog_trees~focal_trees, data=subset(trees_fia, Sig_c_f1== i))
+  srt <-cbind(i, as.numeric(model$coefficients[1]), model$coefficients[2])
+  sig_coef<-rbind(sig_coef, srt)
+}
+names(sig_coef)<-c("sigma", "intercept", "slope")
+
+sig_coef$model<-"individual"
+sig_coef_c$model<-"mean"
+
+coef<-rbind(sig_coef, sig_coef_c)
+colnames(coef)[4]<-"model"
+
+#### plot and compare the plots: 
+
+slps<-ggplot(data=coef, aes(x=sigma, y=slope))+
+  geom_point(aes(colour=model))+
+  ggtitle("Mean analog tree cover by sigma level")+
+  theme_bw()+
+  ylim(0, 1)+
+  scale_x_continuous(breaks = c(0,0.1, 0.25, 0.5, 0.75, 1, 2, 3, 4), limits=c(0, 4.5)) +
+  theme(axis.text.x = element_text(face="bold", size=12,  angle=70))+ # rotate x-axis text for easier viewing. 
+  ggtitle("Average and Individual Models by Sigma")+
+  theme(plot.title = element_text(color = "black", size = 18, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(color = "gray41", size = 14, face = "bold", hjust = 0.5),
+        plot.caption = element_text(color = "gray65", face = "italic"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))
+  
+
+png("./outputs/mean_vs_individual_analog_slopes.png")
+slps
+dev.off()

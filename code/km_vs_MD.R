@@ -7,6 +7,8 @@ ncol(data_out)
 colnames(data_out)[24]<-("analog_trees")
 trees_fia<-subset(data_out, !(is.na(analog_trees)))
 trees_fia$cover_d<-trees_fia$focal_trees-trees_fia$analog_trees
+trees_fia$tree_ratio<-trees_fia$cover_d/trees_fia$focal_trees
+
 # calculate MD ceiling
 trees_fia$MD_c<-ceiling(trees_fia$MD)
 head(trees_fia)
@@ -204,6 +206,12 @@ summary(cov_resid)
 
 
 trees_fia$nf_resid<-cov_resid$residuals
+par(mfrow=c(2, 2))
+hist(trees_fia$cover_d, main = "cover difference distribution")
+hist(trees_fia$focal_trees, main="focal tree cover dist")
+hist(trees_fia$nf_resid, main="cover difference residual distribution")
+hist(log(trees_fia$tree_ratio))
+
 
 # influence of climate distance independent of physical distance: 
 
