@@ -1,5 +1,6 @@
 # This file examines tree cover difference between analog and focal plots by physical distance and 
-# Sigma. 
+# Sigma. It plots residuals for anlogs of each focal plot by distance, and examines whether distance &
+# residual relationship is modulated by sigma.
 
 ############### Data ######################
 data_out<-readRDS("./data/fia_tree_cover4km.rds")
@@ -200,6 +201,206 @@ low<-ggplot(data=subset(sub0, focal_trees<=30), aes(x=km, y=abs(cover_d)))+
 png("./outputs/c_dif_by_sigma_low.png", width=1500, height=1000)
 low
 dev.off()
+
+##### ---------If we only look at large sigmas (>4),
+##### does the residual-distance relationship hold?----- #####
+# 1. Subset trees_fia to only have analogs over 4 sigma, and then subsample them
+# to 1000 random samples: 
+
+sub25<-trees_fia %>%
+  filter(Sigma>4)%>%                   # select plots that have sufficient number of "good"
+  group_by(from_plot) %>%                                                        # analogs, then take 1000 random samples out of the 
+  slice_sample(n=1000, replace=FALSE)  
+
+#1.a subset trees_fia with sigmas <4, do residuals behave better when we group
+# analogs by coarser gradation of sigma? 
+
+subu25<-trees_fia %>%
+  filter(Sigma<4)%>%                   # select plots that have sufficient number of "good"
+  group_by(from_plot) %>%                                                        # analogs, then take 1000 random samples out of the 
+  slice_sample(n=1000, replace=FALSE)  
+
+#1.b create three coarse sigma filters: sigma under 4, sigma over 4
+sub_all<-trees_fia%>%
+  mutate(Sig_coarse=as.factor(case_when(Sigma<4 ~4, 
+                              Sigma>4 ~25))) %>%
+  mutate(Sig_coarse1=as.factor(case_when(Sigma<=2 ~2, 
+                               Sigma >2 & Sigma <=3 ~3, 
+                               Sigma>3 ~ 25))) %>%
+  group_by(from_plot) %>%                                                        # analogs, then take 1000 random samples out of the 
+  slice_sample(n=1000, replace=FALSE)
+
+
+head(sub25)
+# Tree cover over 60%, sigma =25
+high_25<-ggplot(data=subset(sub25, focal_trees>=60), aes(x=km, y=abs(cover_d)))+
+  geom_point(colour="grey")+
+  geom_smooth(method=loess, se=FALSE, cex=3)+
+  # geom_spline( aes(colour= Sig_ceiling), nknots=5, cex=2)+
+  ggtitle("Absolute Residual by Distance to poor analogs \n (sigma>3.5), Focal Cover > 60%\n")+
+  ylab("Tree Cover Difference")+xlab("Distance (km)")+
+  ylim(-10, 100)+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))+
+  facet_wrap(vars(from_plot), nrow=3)
+
+high_25
+
+
+##### -------Use two coarse bins of sigmas: 
+#####--------Sigmas <4 and Sigmas above that, do better analogs make for a better
+##### tree cover prediction? Yes, they do! --------- #####
+# Tree cover over 60%
+
+head(sub_all)
+high_all<-ggplot(data=subset(sub_all, focal_trees>=60), aes(x=km, y=abs(cover_d)))+
+  geom_point(colour="grey")+
+  geom_smooth(method=loess, se=FALSE, cex=3, aes(colour=Sig_coarse))+
+  # geom_spline( aes(colour= Sig_ceiling), nknots=5, cex=2)+
+  ggtitle("Absolute Residual by Distance to coarsely pooled analog, Focal Cover > 60%\n")+
+  ylab("Tree Cover Difference")+xlab("Distance (km)")+
+  ylim(-10, 100)+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))+
+  facet_wrap(vars(from_plot), nrow=3)
+
+png("./outputs/residuals_by_distance&coarse_sigma.png", width=1500, height=1000)
+high_all
+dev.off()
+
+# medium cover: 
+med_all<-ggplot(data=subset(sub_all, focal_trees<60& focal_trees>=30), aes(x=km, y=abs(cover_d)))+
+  geom_point(colour="grey")+
+  geom_smooth(method=loess, se=FALSE, cex=3, aes(colour=Sig_coarse))+
+  # geom_spline( aes(colour= Sig_ceiling), nknots=5, cex=2)+
+  ggtitle("Absolute Residual by Distance to coarsely pooled analog, 30%<=Focal Cover<60%\n")+
+  ylab("Tree Cover Difference")+xlab("Distance (km)")+
+  ylim(-10, 100)+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))+
+  facet_wrap(vars(from_plot), nrow=3)
+
+png("./outputs/med_residuals_by_distance&coarse_sigma.png", width=1500, height=1000)
+med_all
+dev.off()
+
+?geom_smooth
+# low cover: 
+low_all<-ggplot(data=subset(sub_all, focal_trees<30), aes(x=km, y=abs(cover_d)))+
+  geom_point(colour="grey")+
+  geom_smooth(method=loess, se=FALSE, cex=3, aes(colour=Sig_coarse))+
+  # geom_spline( aes(colour= Sig_ceiling), nknots=5, cex=2)+
+  ggtitle("Absolute Residual by Distance to coarsely pooled analog, Focal Cover<30%\n")+
+  ylab("Tree Cover Difference")+xlab("Distance (km)")+
+  ylim(-10, 100)+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))+
+  facet_wrap(vars(from_plot), nrow=3)
+
+png("./outputs/low_residuals_by_distance&coarse_sigma.png", width=2000, height=1000)
+low_all
+dev.off()
+
+##### ---------If we combine all data together? --------------------- #####
+sub_all$Sig_ceiling<-as.factor(sub_all$Sig_ceiling)
+
+all<-ggplot(data=sub_all, aes(x=km, y=abs(cover_d)))+
+  geom_point(colour="grey")+
+  geom_smooth(method=loess, se=FALSE, cex=3, aes(colour=Sig_ceiling))+
+  # geom_spline( aes(colour= Sig_ceiling), nknots=5, cex=2)+
+  ggtitle("Absolute Residuals by Distance to Analog & Sigma \n 100 FIA focal plots \n")+
+  ylab("Absolute Tree Cover Difference")+xlab("Distance (km)")+
+  ylim(-1, 100)+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))#+
+  #facet_wrap(vars(from_plot), nrow=3)
+setwd("/home/svetlanayegorova/Documents/Climate_Analog_Validation")
+
+png("./outputs/sigma_vs_km_all_plots.png", height=800, width = 800)
+all
+dev.off()
+
+
+##### -------Sean's Suggestion----------------------- #####                                        # implement Sean's suggestion: 
+# calculate mean distance to analogs of different sigma values.
+# take all analogs within that distance, and calculate the mean residuals
+# for the two groups. 
+
+#1. find out mean distance for analogs at different sigma levels:
+
+sig_dist<-trees_fia %>%
+  group_by(from_plot, Sig_ceiling) %>%
+  summarize(mean_dist=mean(km), sd_dist=sd(km), mean_resid=mean(abs(cover_d)))
+print(sig_dist, nrow=10)
+
+#2. For each plot and each distance category, calculate the average residual: 
+
+# can do it with a for loop:  
+# add a new empty column: 
+sig_dist %>% 
+  add_column(km_mean_resid=NA)
+head(sig_dist)
+# trees_fia%>%
+#   filter(between(km, 0, 500 ))
+
+for(i in 1:nrow(sig_dist)) {
+mean_resid<-trees_fia %>%
+  filter(from_plot==sig_dist$from_plot[i] & between(km, sig_dist$mean_dist[i]-sig_dist$sd_dist[1], sig_dist$mean_dist[i]+sig_dist$sd_dist[i]))%>%
+  summarize(mean_resid_km=mean(abs(cover_d))) %>%
+  pull(.)
+sig_dist$km_mean_resid[i]<-mean_resid
+}
+
+
+# takes a minute to run the loop, think of a way to do it with a function.   
+# str(mean_resid)
+sig_dist$Sig_ceiling<-as.factor(sig_dist$Sig_ceiling)
+seans_way<-ggplot(data=sig_dist)+
+  geom_point(aes(x=km_mean_resid,  y=mean_resid, col=Sig_ceiling), cex=3)+
+  geom_abline(intercept = 0, slope=1)+
+  labs(title="Physical Dist vs Climate Distance Residuals")+
+  xlab("Residuals from Distance Only model")+
+  ylab("Residuals from Climate Only model")+
+  theme_bw()+
+  theme(axis.text.x = element_text( size=13,  angle=70), 
+        plot.title = element_text(size = 20, face = "bold"), 
+        legend.title=element_text(size=20), 
+        legend.text=element_text(size=15))
+
+png("./outputs/Sean_dist_vs_climate.png", height=800, width=800)
+seans_way
+dev.off()
+
+
+
+##### -----What is the average distance for each sigma? ----------- #####
+str(sig_dist)
+km2sig<-sig_dist %>% 
+  group_by(Sig_ceiling) %>%
+  summarize(mean_dist=mean(mean_dist))
+
+
+km_to_sigma<-ggplot(data=sig_dist, aes(x=Sig_ceiling, y=mean_dist))+
+  geom_point(aes(col=from_plot), cex=3)+
+  geom_point(data=km2sig, aes(x=Sig_ceiling, y=mean_dist), pch=17, cex=5, col="yellow")+
+  labs(title="Mean Distance to Sigma per Plot")
+
+
 
 ########################### What is going on with the focal tree cover? 
 # test0<-ddply(trees_sub1000, .(from_plot), summarize, mean=mean(focal_trees))
