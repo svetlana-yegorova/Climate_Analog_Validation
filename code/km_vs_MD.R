@@ -49,8 +49,7 @@ km_vs_md2<-ggplot(data=trees_fia, aes(x=km, y=MD, z=sigma_break))+
 png("./outputs/km_vs_md_different_sigmas.png")  
 km_vs_md2
 dev.off()
-
-####################################2. relationship between km and quality of biomass prediction  ##############################
+####################2. relationship between km and quality of biomass prediction  ##############################
 
 
 # for all sigmas (weak, positive relationship)

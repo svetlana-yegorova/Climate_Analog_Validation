@@ -91,7 +91,7 @@ summary(slope_100)
 slope_200<-lm(analog_trees~focal_trees, data=subset(trees_fia, Sigma<=2.0))
 summary(slope_200)
 
-slope_all<-lm(analog_trees~focal_trees, data=subset(trees_fia<=4.00))
+slope_all<-lm(analog_trees~focal_trees, data=subset(trees_fia, Sigma<=4.00))
 summary(slope_all)
 
 ##################### Finess the plots: 
